@@ -1,22 +1,22 @@
-<h1>i have never dene a README before</h1>
+<h1>i have never done a README before</h1>
 
 <p>
-the main ideia of pscript is to the middle man (you probably) make a python program that pscript can read
-than the user will make a ps script that will be read by the pscript interpreter and will be executed
-by your python program
+the main ideia of pscript is to the middle man (you probably) make a python class that pscript can read
+than the user will make a .ps file that will be read by the pscript interpreter and will be executed
+by your python class
 e.g
 pscript.py reads psmidlle-git.py, then reads program.ps, then executes program.ps with psmidlle-git definitions
 
 main ps line defs
 label "#name"
 label stop "##"
-func exec "func vars"
-jump "@label" will jump to that label and execute it
-conditional "!boolean" if true will execute the next line
+every other line mush be handled by psmidlle
 
 you may NOT nest labels
-making a conditional jump to a label is recomended
-
 only the main label will be executed normally
+
+stdpsmiddle is included in main.py
+
+everything but jumps shall be executed by psmiddle
 
 </p>
