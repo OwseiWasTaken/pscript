@@ -291,3 +291,7 @@ if __name__ == "__main__":
 		psmiddle,
 		ReadFile(filename)
 	)
+
+#TODO#
+#spm still needs type casting#
+#TODO#
