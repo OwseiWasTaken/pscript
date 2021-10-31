@@ -1,23 +1,6 @@
-#! /bin/python3.9
-# lang/pscript/main.py
 from util import *
-
-class LINE:
-	def __init__(this, num, tp, cont):
-		this.LineNum =	num
-		this.LineType = tp
-		this.LineCont = cont
-
-	def __repr__(this):
-		return f"{this.LineNum+1} : {this.LineType}({this.LineCont})"
-	def __str__(this):
-		t = this.LineCont
-		if this.LineType == "var":t = "def "+t
-		if this.LineType == "label":t += "{"
-		if this.LineType == "label stop":t += "}"
-		if this.LineType == "conditional":t = "if "+' && '.join(t)+':'
-		if this.LineType == "jump":t += "()"
-		return f"{t}"
+# only diff (@ 31/10/2021) is in printf
+# "\n" if added to the end of the string)
 
 errors = {
 	1 : "missing file name as $1",
@@ -48,81 +31,7 @@ def panic(errnum, *extra):
 	eprint(errmsg)
 	exit(errnum)
 
-def ListIntoLINE(lst: list[str]) -> list[LINE]:
-	ret = []
-	for i in r(lst):
-		ln = lst[i]
-		tp = None
-		cont = ""
-		if ln:
-			if ln == "##":
-				tp = "label stop"
-			elif ln[0] == '#':
-				tp = "label"
-				cont = ln[1:]
-			elif ln[0] == '!':
-				tp = "jump"
-				cont = ln[1:]
-			else:
-				tp = "func"
-				cont = ln
-			cont = MakeString(cont)
-			ret.append(LINE(i, tp, cont))
-	if ret[-1].LineType != "label stop":
-		ret.append(LINE(i+1, "label stop", ""))
-	return ret
-
-def ReadFile(filename):
-	if filename:
-		if exists(filename):
-			with open(filename, 'r') as f:
-				return ListIntoLINE(list(map(lambda x: x.strip(), f.readlines())))
-		else:
-			panic(2, filename)
-	else:
-		panic(1)
-
-def PrintFile(LINEfile: list[LINE]):
-	inlabel = 0
-	for ln in LINEfile:
-		if ln.LineType == "label stop":
-			inlabel -= 1
-		print("    " * inlabel + str(ln))
-		if ln.LineType == "label":
-			inlabel += 1
-
-def WrapLines(lines : list[LINE]) -> dict[str:list[LINE]]:
-	lbl = ""
-	ret = {}
-	for line in lines:
-		if line.LineType == "label" and not lbl:
-			lbl = line.LineCont[0]
-			ret[lbl] = []
-		elif line.LineType == "label stop":
-			lbl = ""
-		else:
-			ret[lbl].append(line)
-	return ret
-
-def ExecuteWrap(psmiddle, name, program):
-	execnext = None
-	prog = program[name]
-	myps = psmiddle()
-	for i in r(prog):
-		if not myps.running:break
-		line = prog[i]
-		if line.LineType == "func":
-			myps(line)
-		elif line.LineType == "jump":
-			myps.vars = myps.vars | ExecuteWrap(psmiddle, line.LineCont[0], program)
-	return myps.Return
-
-def execute(psmiddle, lines):
-	vars = {}
-	lines = WrapLines(lines)
-	ExecuteWrap(psmiddle, "main", lines)
-
-class stdpsmiddle:
+class psmiddle:
 	def get(this, name):
 		if name in this.vars.keys():
 			return this.vars[name]
@@ -179,7 +88,7 @@ class stdpsmiddle:
 	def printf(this, line):
 		string = this.get(line[0])
 		args = this.gets(line[1:])
-		printf(string, *args)
+		printf(string+"\n", *args)
 
 	def MakeStream(this, line):
 		streamname = line[0]
@@ -239,11 +148,6 @@ class stdpsmiddle:
 	def endif(this, line):
 		this.bool = None
 
-	def ret(this, line):
-		for l in line:
-			this.Return[l] = this.get(l)
-		this.running = False
-
 	def __init__(this):
 		this.commands = {
 			" panic":this.panic,
@@ -260,34 +164,12 @@ class stdpsmiddle:
 			"math":this.math,
 			"@":this.startif,
 			"@@":this.endif,
-			"return":this.ret
 		}
 		this.vars = {}
 		this.bool = None
-		this.Return = {}
-		this.running = True
 	def __call__(this, line):
 		this.line = line
 		if this.bool != False or line.LineCont[0] in ["@", "@@"]:
 			this.commands.get(line.LineCont[0],
 			this.panic)(line.LineCont[1:])
 		return this.vars
-
-if __name__ == "__main__":
-	args = get("").list
-	if len(args) == 2:
-		if '.' in args[0]:
-			psmiddle = __import__('.'.join(args[0].split('.')[:-1])).psmiddle
-		else:
-			psmiddle = __import__(args[0]).psmiddle
-		filename = args[1]
-	elif len(args) == 1:
-		psmiddle = stdpsmiddle
-		filename = args[0]
-	else:
-		panic(1)
-
-	execute(
-		psmiddle,
-		ReadFile(filename)
-	)
