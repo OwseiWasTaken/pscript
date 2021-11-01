@@ -1,5 +1,5 @@
 #! /bin/python3.9
-# lang/pscript/main.py
+# by owsei: lang/pscript/main.py
 from util import *
 
 class LINE:
@@ -21,12 +21,15 @@ class LINE:
 
 errors = {
 	1 : "missing file name as $1",
-	2 : "file {s} does not exits",
+	2 : "file \"{s}\" does not exits",
+	3 : "no \"main\" label!",
+	4 : "no \"main\" label in {ls}",
 	# runtime errors
 	127 : "file {s} does not exits",
 	128 : "can't close system out stream",
 	129 : "no such command",
 	130 : "no such var \"{s}\"",
+	131 : "can't convert {r} (type {r}) to {r}",
 }
 
 def panic(errnum, *extra):
@@ -34,8 +37,8 @@ def panic(errnum, *extra):
 	if errnum > 126:
 		printl(COLOR.red+'[')
 		printl(COLOR.orange+"RUNTIME ERROR")
-		print(COLOR.red+']'+COLOR.nc)
 		line = extra.pop(-1)
+		print(COLOR.red+']'+COLOR.nc)
 		print(repr(line))
 	else:
 		printl(COLOR.red+'[')
@@ -62,6 +65,9 @@ def ListIntoLINE(lst: list[str]) -> list[LINE]:
 				cont = ln[1:]
 			elif ln[0] == '!':
 				tp = "jump"
+				cont = ln[1:]
+			elif ln[0] == '>':
+				tp = "include"
 				cont = ln[1:]
 			else:
 				tp = "func"
@@ -101,8 +107,19 @@ def WrapLines(lines : list[LINE]) -> dict[str:list[LINE]]:
 		elif line.LineType == "label stop":
 			lbl = ""
 		else:
-			ret[lbl].append(line)
+			if lbl:
+				ret[lbl].append(line)
 	return ret
+
+def IncludeFile(filename: str) -> dict[str:list]:
+	return WrapLines(ReadFile(filename))
+
+def IncludeFiles(filenames: list[str]) -> dict[str:list]:
+	ret = {}
+	for flname in filenames:
+		ret = ret | IncludeFile(flname)
+	return ret
+	return [ (ret:=ret | IncludeFile(x)) for x in filenames][-1]
 
 def ExecuteWrap(psmiddle, name, program):
 	execnext = None
@@ -113,6 +130,11 @@ def ExecuteWrap(psmiddle, name, program):
 		line = prog[i]
 		if line.LineType == "func":
 			myps(line)
+		elif line.LineType == "include":
+			toinclude = IncludeFiles(line.LineCont)
+			if "init" in toinclude.keys():
+				myps.vars = ExecuteWrap(psmiddle, "init", toinclude)
+			program = program | toinclude
 		elif line.LineType == "jump":
 			myps.vars = myps.vars | ExecuteWrap(psmiddle, line.LineCont[0], program)
 	return myps.Return
@@ -120,9 +142,16 @@ def ExecuteWrap(psmiddle, name, program):
 def execute(psmiddle, lines):
 	vars = {}
 	lines = WrapLines(lines)
-	ExecuteWrap(psmiddle, "main", lines)
+	if "main" in lines.keys():
+		coderan = ExecuteWrap(psmiddle, "main", lines)
+		if coderan:
+			return coderan[list(coderan.keys())[0]]
+		else:
+			return 0
+	else:
+		panic(4, tuple(lines.keys()))
 
-class stdpsmiddle:
+class stdpsmiddle: # spm
 	def get(this, name):
 		if name in this.vars.keys():
 			return this.vars[name]
@@ -161,14 +190,12 @@ class stdpsmiddle:
 	def set(this, line):this.vars[line[0]] = this.get(line[1])
 
 	def debug(this, line):
-		print("DEBUG{")
-		printl("	")
-		print(this.gets(line))
-		printl("	")
-		print(this.vars)
-		printl("	")
-		print(repr(this.line))
-		print("}DEBUG")
+		print("DEBUG %d {" % this.line.LineNum)
+		if this.gets(line):
+			print(' '*4+', '.join(list(map(repr, this.gets(line)))))
+		print(' '*4+str(this.vars))
+		print(' '*4+repr(this.line))
+		print("} %d DEBUG" % this.line.LineNum)
 
 	def sprintf(this, line):
 		toset = line[0]
@@ -187,10 +214,11 @@ class stdpsmiddle:
 		if streamtype == "w":
 			streamto = this.get(line[2])
 			if streamto == "sout":streamto = sout
+			elif streamto == "eout":streamto = eout
 			else: streamto = open(streamto, streamtype)
 			def _stream_out(line):
 				if line == ["close"]:
-					if streamto == sout:
+					if streamto in [ sout , eout]:
 						panic(128, this.line)
 					streamto.close()
 					del this.commands[streamname]
@@ -218,7 +246,6 @@ class stdpsmiddle:
 						this.vars[line[1]] = streamto.readline()
 					else:
 						this.vars[line[0]] = streamto.readline()
-
 			this.commands[streamname] = _stream_in
 
 	def math(this, line):
@@ -244,6 +271,34 @@ class stdpsmiddle:
 			this.Return[l] = this.get(l)
 		this.running = False
 
+	def delete(this, line):
+		for l in line:
+			if l in this.vars.keys():
+				del this.vars[l]
+			else:
+				panic(130, l, this.line)
+
+	def StringToDigit(this, line):
+		toconv = line[0]
+		value = this.get(line[0])
+		if type(value) != str:
+			panic(131, value, type(value), str, this.line)
+		if all([n in "+-0987654321." for n in value]):
+			this.vars[toconv] = eval(value)
+		else:
+			this.vars[toconv] = 0
+		print(this.vars)
+
+	def DigitToString(this, line):
+		toconv = line[0]
+		value = this.get(line[0])
+		this.vars[toconv] = str(value)
+
+	def ToBool(this, line):
+		toconv = line[0]
+		value = this.get(line[0])
+		this.vars[toconv] = not not value
+
 	def __init__(this):
 		this.commands = {
 			" panic":this.panic,
@@ -260,7 +315,11 @@ class stdpsmiddle:
 			"math":this.math,
 			"@":this.startif,
 			"@@":this.endif,
-			"return":this.ret
+			"return":this.ret,
+			"StoD":this.StringToDigit,
+			"DtoS":this.DigitToString,
+			"ToB":this.ToBool,
+			"del":this.delete,
 		}
 		this.vars = {}
 		this.bool = None
@@ -287,11 +346,13 @@ if __name__ == "__main__":
 	else:
 		panic(1)
 
-	execute(
+	exit(execute(
 		psmiddle,
 		ReadFile(filename)
-	)
-
-#TODO#
-#spm still needs type casting#
+	))
+#TODO# ps executor
+#error[4] printf {ls} '' && "" wrapping#
+#λ./main.py examples/include.ps#
+#[ERROR]#
+#no "main" label in ["'yee'", "'yeet'"]#
 #TODO#
