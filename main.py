@@ -151,7 +151,7 @@ def execute(psmiddle, lines):
 	else:
 		panic(4, tuple(lines.keys()))
 
-class stdpsmiddle: # spm
+class stdpsmiddle: # stdpm
 	def get(this, name):
 		if name in this.vars.keys():
 			return this.vars[name]
@@ -355,4 +355,8 @@ if __name__ == "__main__":
 #λ./main.py examples/include.ps#
 #[ERROR]#
 #no "main" label in ["'yee'", "'yeet'"]#
+#TODO#
+
+#TODO# stdpm
+#debug SYSTEM (don't stop at debug print)#
 #TODO#
