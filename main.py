@@ -35,15 +35,15 @@ errors = {
 def panic(errnum, *extra):
 	extra = list(extra)
 	if errnum > 126:
-		printl(COLOR.red+'[')
-		printl(COLOR.orange+"RUNTIME ERROR")
+		printl( SetColorMode(COLOR.red, '5')+"[" )
+		printl( SetColorMode(COLOR.orange, '5')+"RUNTIME ERROR" )
+		printl( SetColorMode(COLOR.red, '5')+"]" )
 		line = extra.pop(-1)
-		print(COLOR.red+']'+COLOR.nc)
 		print(repr(line))
 	else:
-		printl(COLOR.red+'[')
-		printl(COLOR.orange+"ERROR")
-		print(COLOR.red+']'+COLOR.nc)
+		printl( COLOR.red + "[" )
+		printl( SetColorMode(COLOR.orange, '5')+"ERROR" )
+		print ( COLOR.red + "]"+COLOR.nc )
 
 	errmsg = errors[errnum]
 	if extra:
