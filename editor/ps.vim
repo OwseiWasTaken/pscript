@@ -17,7 +17,7 @@ syn match Todo '^\t// \?TODO'
 
 
 syn match SpecialStr '\({[sifbx]}\|\\"\|\\n\)' contained
-syn match String '\"\([^"]\|\"\)*\"' contains=SpecialStr
+syn match String '\"\([^"]\{-\}\|\"+\)\"' contains=SpecialStr
 
 
 

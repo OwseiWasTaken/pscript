@@ -23,7 +23,7 @@ errors = {
 	1 : "missing file name as $1",
 	2 : "file \"{s}\" does not exits",
 	3 : "no \"main\" label!",
-	4 : "no \"main\" label in {ls}",
+	4 : "no \"main\" label in {s}",
 	# runtime errors
 	127 : "file {s} does not exits",
 	128 : "can't close system out stream",
@@ -35,9 +35,9 @@ errors = {
 def panic(errnum, *extra):
 	extra = list(extra)
 	if errnum > 126:
-		printl( SetColorMode(COLOR.red, '5')+"[" )
+		printl( COLOR.red + "[" )
 		printl( SetColorMode(COLOR.orange, '5')+"RUNTIME ERROR" )
-		printl( SetColorMode(COLOR.red, '5')+"]" )
+		print( COLOR.red + "]" + COLOR.nc )
 		line = extra.pop(-1)
 		print(repr(line))
 	else:
@@ -72,6 +72,7 @@ def ListIntoLINE(lst: list[str]) -> list[LINE]:
 			else:
 				tp = "func"
 				cont = ln
+			cont = TrimSpaces(cont)
 			cont = MakeString(cont)
 			ret.append(LINE(i, tp, cont))
 	if ret[-1].LineType != "label stop":
@@ -121,10 +122,12 @@ def IncludeFiles(filenames: list[str]) -> dict[str:list]:
 	return ret
 	return [ (ret:=ret | IncludeFile(x)) for x in filenames][-1]
 
-def ExecuteWrap(psmiddle, name, program):
+def ExecuteWrap(psmiddle, name, program, passed = {}):
 	execnext = None
 	prog = program[name]
 	myps = psmiddle()
+	myps.vars = myps.vars | passed
+	passon = {}
 	for i in r(prog):
 		if not myps.running:break
 		line = prog[i]
@@ -136,7 +139,10 @@ def ExecuteWrap(psmiddle, name, program):
 				myps.vars = ExecuteWrap(psmiddle, "init", toinclude)
 			program = program | toinclude
 		elif line.LineType == "jump":
-			myps.vars = myps.vars | ExecuteWrap(psmiddle, line.LineCont[0], program)
+			myps.vars = myps.vars | ExecuteWrap(
+psmiddle, line.LineCont[0], program,)
+#{program[line.LineCont[0]][x]:myps.get(line.LineCont[1:][x]) for x in r(line.LineCont[1:])})
+#gotta make program struct to fit program recs and stuff
 	return myps.Return
 
 def execute(psmiddle, lines):
@@ -149,7 +155,11 @@ def execute(psmiddle, lines):
 		else:
 			return 0
 	else:
-		panic(4, tuple(lines.keys()))
+		ll = lines.keys()
+		if len(ll) == 1:
+			panic(4, list(ll)[0])
+		else:
+			panic(4, tuple(lines.keys()))
 
 class stdpsmiddle: # stdpm
 	def get(this, name):
@@ -190,12 +200,12 @@ class stdpsmiddle: # stdpm
 	def set(this, line):this.vars[line[0]] = this.get(line[1])
 
 	def debug(this, line):
-		print("DEBUG %d {" % this.line.LineNum)
+		print("DEBUG %d {" % (this.line.LineNum+1))
 		if this.gets(line):
 			print(' '*4+', '.join(list(map(repr, this.gets(line)))))
 		print(' '*4+str(this.vars))
 		print(' '*4+repr(this.line))
-		print("} %d DEBUG" % this.line.LineNum)
+		print("} %d DEBUG" % (this.line.LineNum+1))
 
 	def sprintf(this, line):
 		toset = line[0]
@@ -223,7 +233,8 @@ class stdpsmiddle: # stdpm
 					streamto.close()
 					del this.commands[streamname]
 				elif line[0] == "<<":
-					streamto.write(this.get(line[1]))
+					for w in line[1:]:
+						streamto.write(this.get(w))
 				else:
 					streamto.write(this.get(line[0]))
 			this.commands[streamname] = _stream_out
