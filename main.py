@@ -289,6 +289,9 @@ class stdpsmiddle: # stdpm
 			else:
 				panic(130, l, this.line)
 
+	def cdb(this, line):
+		print(this.commands)
+
 	def StringToDigit(this, line):
 		toconv = line[0]
 		value = this.get(line[0])
@@ -310,6 +313,14 @@ class stdpsmiddle: # stdpm
 		value = this.get(line[0])
 		this.vars[toconv] = not not value
 
+	def read(this, line):
+		tw = line[0]
+		if len(line) > 1:
+			stdout.write(line[1])
+		if len(line) == 2:
+			tw = line[1]
+		this.vars[tw] = input()
+
 	def __init__(this):
 		this.commands = {
 			" panic":this.panic,
@@ -321,6 +332,7 @@ class stdpsmiddle: # stdpm
 			"print" :this.print,
 			"sprintf":this.sprintf,
 			"printf":this.printf,
+			"read"  :this.read,
 			"mkstream":this.MakeStream,
 			"//":nop,# comment
 			"math":this.math,
@@ -331,6 +343,7 @@ class stdpsmiddle: # stdpm
 			"DtoS":this.DigitToString,
 			"ToB":this.ToBool,
 			"del":this.delete,
+			"cdb":this.cdb,
 		}
 		this.vars = {}
 		this.bool = None

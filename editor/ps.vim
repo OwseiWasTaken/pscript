@@ -1,4 +1,3 @@
-
 " vim syntax file for the s programming lang
 
 if exists("b:current_syntax")
