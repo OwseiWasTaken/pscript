@@ -313,12 +313,13 @@ class stdpsmiddle: # stdpm
 		value = this.get(line[0])
 		this.vars[toconv] = not not value
 
+	def puts(this, line):
+		stdout.write(', '.join([this.get(l) for l in line]))
+
 	def read(this, line):
-		tw = line[0]
+		tw = line[-1]
 		if len(line) > 1:
-			stdout.write(line[1])
-		if len(line) == 2:
-			tw = line[1]
+			stdout.write(this.get(line[0]))
 		this.vars[tw] = input()
 
 	def __init__(this):
@@ -344,6 +345,7 @@ class stdpsmiddle: # stdpm
 			"ToB":this.ToBool,
 			"del":this.delete,
 			"cdb":this.cdb,
+			"puts":this.puts,
 		}
 		this.vars = {}
 		this.bool = None
